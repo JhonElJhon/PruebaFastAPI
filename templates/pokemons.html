@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PokéAPI Tester</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- SweetAlert2 -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <style>
+        body { padding: 20px; }
+        .pokemon-card { margin: 10px; transition: transform 0.2s; }
+        .pokemon-card:hover { transform: scale(1.02); }
+        .search-box { margin-bottom: 20px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 class="text-center mb-4">🛠 Probando la PokéAPI_UV</h1>
+
+        <!-- Barra de Búsqueda -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h3>🔍 Buscar Pokémon</h3>
+            </div>
+            <div class="card-body">
+                <div class="input-group">
+                    <input type="text" id="searchInput" class="form-control" placeholder="ID. Dejar en blanco para buscar todos los pokemones">
+                    <button class="btn btn-primary" onclick="searchPokemon()">Buscar</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Formulario para añadir/editar Pokémon -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h3 id="formTitle">➕ Añadir Nuevo Pokémon</h3>
+            </div>
+            <div class="card-body">
+                <form id="pokemonForm">
+                    <input type="hidden" id="editMode" value="false">
+                    <input type="hidden" id="currentPokemonId">
+                    <div class="mb-3">
+                        <label class="form-label">ID</label>
+                        <input type="number" class="form-control" id="pokemonId" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Nombre</label>
+                        <input type="text" class="form-control" id="pokemonName" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Vida</label>
+                        <input type="number" class="form-control" id="pokemonHp" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Daño</label>
+                        <input type="number" class="form-control" id="pokemonDamage" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Defensa</label>
+                        <input type="number" class="form-control" id="pokemonDefense" required>
+                    </div>
+                    <button type="submit" class="btn btn-success" id="submitButton">Añadir Pokémon</button>
+                    <button type="button" class="btn btn-secondary ms-2" onclick="cancelEdit()" id="cancelButton" style="display: none;">Cancelar</button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Lista de Pokémon -->
+        <h2>📜 Pokémones Existentes</h2>
+        <div id="pokemonList" class="row"></div>
+    </div>
+
+    <!-- JavaScript para interactuar con la API -->
+    <script>
+        const API_URL = "http://localhost:8000/pokemons";
+
+        // Cargar Pokémones al iniciar
+        document.addEventListener('DOMContentLoaded', fetchPokemons);
+
+        // Manejar envío del formulario (Añadir/Editar)
+        document.getElementById('pokemonForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const isEditMode = document.getElementById('editMode').value === 'true';
+            const pokemonId = document.getElementById('currentPokemonId').value;
+
+            const newPokemon = {
+                id: parseInt(document.getElementById('pokemonId').value),
+                nombre: document.getElementById('pokemonName').value,
+                vida: parseFloat(document.getElementById('pokemonHp').value),
+                daño: parseFloat(document.getElementById('pokemonDamage').value),
+                defensa: parseFloat(document.getElementById('pokemonDefense').value)
+            };
+
+            try {
+                const url = isEditMode ? `${API_URL}/${pokemonId}` : API_URL;
+                const method = isEditMode ? 'PUT' : 'POST';
+
+                const response = await fetch(url, {
+                    method: method,
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(newPokemon)
+                });
+
+                const data = await response.json();
+                if (response.ok) {
+                    Swal.fire({
+                        title: isEditMode ? '¡Pokémon actualizado!' : '¡Pokémon añadido!',
+                        icon: 'success'
+                    });
+                    resetForm();
+                    fetchPokemons();
+                } else {
+                    Swal.fire({
+                        title: 'Error',
+                        text: data.error || 'Ese Pokémon ya existe en nuestra Pokédex.',
+                        icon: 'error'
+                    });
+                }
+            } catch (error) {
+                if (error.status === 409) {
+                    Swal.fire({
+                        title: '¡Ups!',
+                        text: 'Ese Pokémon ya existe en nuestra Pokédex.',
+                        icon: 'warning'
+                    });
+                } else{
+                Swal.fire({
+                    title: 'Error',
+                    text: 'No se pudo conectar a la API',
+                    icon: 'error'
+                });
+            }}
+        });
+
+        // Obtener todos los Pokémones
+        async function fetchPokemons() {
+            try {
+                const response = await fetch(API_URL);
+                const data = await response.json();
+                displayPokemons(data.Pokemones || []);
+            } catch (error) {
+                Swal.fire({
+                    title: 'Error',
+                    text: 'No se pudieron cargar los Pokémones',
+                    icon: 'error'
+                });
+            }
+        }
+
+        // Mostrar Pokémones en cards con botones de acción
+        function displayPokemons(pokemons) {
+            const container = document.getElementById('pokemonList');
+            container.innerHTML = pokemons.map(pokemon => `
+                <div class="col-md-4">
+                    <div class="card pokemon-card">
+                        <div class="card-body">
+                            <h5 class="card-title">${pokemon.nombre}</h5>
+                            <p class="card-text">ID: ${pokemon.id}</p>
+                            <p class="card-text">Vida: ${pokemon.vida}</p>
+                            <p class="card-text">Daño: ${pokemon.daño}</p>
+                            <p class="card-text">Defensa: ${pokemon.defensa}</p>
+                            <div class="d-flex justify-content-between">
+                                <button class="btn btn-warning btn-sm" onclick="editPokemon(${pokemon.id})">Editar</button>
+                                <button class="btn btn-danger btn-sm" onclick="deletePokemon(${pokemon.id})">Eliminar</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // Buscar Pokémon por nombre o ID
+        async function searchPokemon() {
+            const query = document.getElementById('searchInput').value.trim();
+            if (!query) return fetchPokemons();
+
+            try {
+                // Busca por ID (si es número)
+                if (!isNaN(query)) {
+                    const response = await fetch(`${API_URL}/${query}`);
+                    if (response.ok) {
+                        const pokemon = await response.json();
+                        displayPokemons([pokemon]);
+                    } else {
+                        Swal.fire({
+                            title: 'No encontrado',
+                            text: 'No hay Pokémon con ese ID',
+                            icon: 'info'
+                        });
+                    }
+                }
+            } catch (error) {
+                Swal.fire({
+                    title: 'Error',
+                    text: 'Error en la búsqueda',
+                    icon: 'error'
+                });
+            }
+        }
+
+        // Editar Pokémon
+        async function editPokemon(id) {
+            try {
+                const response = await fetch(`${API_URL}/${id}`);
+                const pokemon = await response.json();
+
+                document.getElementById('editMode').value = 'true';
+                document.getElementById('currentPokemonId').value = id;
+                document.getElementById('pokemonId').value = pokemon.id;
+                document.getElementById('pokemonName').value = pokemon.nombre;
+                document.getElementById('pokemonHp').value = pokemon.vida;
+                document.getElementById('pokemonDamage').value = pokemon.daño;
+                document.getElementById('pokemonDefense').value = pokemon.defensa;
+
+                document.getElementById('formTitle').textContent = '✏️ Editar Pokémon';
+                document.getElementById('submitButton').textContent = 'Actualizar';
+                document.getElementById('cancelButton').style.display = 'inline-block';
+            } catch (error) {
+                Swal.fire({
+                    title: 'Error',
+                    text: 'No se pudo cargar el Pokémon',
+                    icon: 'error'
+                });
+            }
+        }
+
+        // Cancelar edición
+        function cancelEdit() {
+            resetForm();
+        }
+
+        // Resetear formulario
+        function resetForm() {
+            document.getElementById('pokemonForm').reset();
+            document.getElementById('editMode').value = 'false';
+            document.getElementById('formTitle').textContent = '➕ Añadir Nuevo Pokémon';
+            document.getElementById('submitButton').textContent = 'Añadir Pokémon';
+            document.getElementById('cancelButton').style.display = 'none';
+        }
+
+        // Eliminar Pokémon con confirmación
+        async function deletePokemon(id) {
+            Swal.fire({
+                title: '¿Eliminar Pokémon?',
+                text: "¡No podrás revertir esto!",
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#d33',
+                cancelButtonColor: '#3085d6',
+                confirmButtonText: 'Sí, eliminar',
+                cancelButtonText: 'Cancelar'
+            }).then(async (result) => {
+                if (result.isConfirmed) {
+                    try {
+                        const response = await fetch(`${API_URL}/${id}`, {
+                            method: 'DELETE'
+                        });
+                        const data = await response.json();
+                        if (response.ok) {
+                            Swal.fire(
+                                '¡Eliminado!',
+                                'El Pokémon ha sido eliminado.',
+                                'success'
+                            );
+                            fetchPokemons();
+                        } else {
+                            Swal.fire(
+                                'Error',
+                                data.error || 'No se pudo eliminar',
+                                'error'
+                            );
+                        }
+                    } catch (error) {
+                        Swal.fire(
+                            'Error',
+                            'No se pudo conectar a la API',
+                            'error'
+                        );
+                    }
+                }
+            });
+        }
+    </script>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
