@@ -16,10 +16,12 @@ templates = Jinja2Templates(directory="templates")
 origins = [
     "https://https://pokeapi-uv.onrender.com/",
     "http://localhost:8000",  # Para desarrollo local
+    "http://127.0.0.1:8000/",
 ]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,  # Permite todos los orígenes (en desarrollo)
+    allow_origins=["*"],  # Permite todos los orígenes (en desarrollo) para probar en local
+    #allow_origins=origins, # Permite todos los orígenes (en desarrollo) para la web
     allow_credentials=True,
     allow_methods=["*"],  # Permite todos los métodos (GET, POST, etc.)
     allow_headers=["*"],  # Permite todos los headers
@@ -27,9 +29,9 @@ app.add_middleware(
 class Pokemon(BaseModel):
     id: int
     nombre: str
-    vida: float
-    daño: float
-    defensa: float
+    vida: int
+    daño: int
+    defensa: int
 
 # POKEMONES PRINCIPALES
 bulbasaur = {
@@ -68,8 +70,14 @@ def read_root():
 async def retornar_todos_pokemones():
     return {"Pokemones": pokemones}
 
+#Vamos a tener en cuenta que no se pueden crear pokemones con ID negativas o menores a 0
 @app.get("/pokemons/{pokemon_id}")
 def read_pokemon(pokemon_id: int):
+    if pokemon_id <= 0:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="El ID debe ser un entero positivo mayor a 0"
+        )
     for pokemon in pokemones:
         if pokemon["id"] == pokemon_id:
             return pokemon
@@ -78,8 +86,30 @@ def read_pokemon(pokemon_id: int):
         detail=f"Pokémon con ID {pokemon_id} no encontrado"
     )
 
+#Vamos a tener en cuenta que no se pueden crear pokemones con ID negativas o menores a 0
+#Tampoco se permite vida menor a 1, ni daño y defensa menores a 0
 @app.post("/pokemons/")
 def create_pokemon(pokemon: Pokemon):
+    if pokemon.id <= 0:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="El ID debe ser un entero positivo mayor a 0"
+        )
+    if pokemon.vida <= 0:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="La vida debe ser un entero positivo mayor a 0"
+        )
+    if pokemon.daño < 0:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="El daño debe ser un entero mayor o igual a 0"
+        )
+    if pokemon.defensa < 0:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="La defensa debe ser un entero mayor o igual a 0"
+        )
     pokemon_dict = pokemon.dict()
     for pokemon in pokemones:
         if pokemon["id"] == pokemon_dict["id"]:
@@ -91,9 +121,36 @@ def create_pokemon(pokemon: Pokemon):
     return {"Pokemon añadido": {"Pokemon": pokemon_dict}}
     
 
-
+#Vamos a tener en cuenta que no se pueden crear pokemones con ID negativas o menores a 0
+#Tampoco podemos permitir que se cambie una ID por la ID ya existente de otro Pokemon
+#Tampoco se permite vida menor a 1, ni daño y defensa menores a 0
 @app.put("/pokemons/{pokemon_id}")
 def update_pokemon(pokemon_id: int, nuevo_pokemon: Pokemon):
+    if nuevo_pokemon.id != pokemon_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No se puede cambiar la ID del Pokemon"
+        )
+    if nuevo_pokemon.id <= 0:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="El ID debe ser un entero positivo mayor a 0"
+        )
+    if nuevo_pokemon.vida <= 0:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="La vida debe ser un entero positivo mayor a 0"
+        )
+    if nuevo_pokemon.daño < 0:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="El daño debe ser un entero mayor o igual a 0"
+        )
+    if nuevo_pokemon.defensa < 0:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="La defensa debe ser un entero mayor o igual a 0"
+        )
     nuevo_pokemon_dict = nuevo_pokemon.dict()
     for pokemon in pokemones:
         if pokemon["id"] == pokemon_id:
@@ -104,9 +161,14 @@ def update_pokemon(pokemon_id: int, nuevo_pokemon: Pokemon):
         detail=f"Pokémon con ID {pokemon_id} no encontrado"
     )
 
-
+#Vamos a tener en cuenta que no existen pokemones con ID negativas o menores a 0
 @app.delete("/pokemons/{pokemon_id}")
 def delete_pokemon(pokemon_id: int):
+    if pokemon_id <= 0:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="El ID debe ser un entero positivo mayor a 0"
+        )
     for pokemon in pokemones:
         if pokemon["id"] == pokemon_id:
             pokemones.remove(pokemon)

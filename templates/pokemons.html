@@ -42,24 +42,28 @@
                     <input type="hidden" id="editMode" value="false">
                     <input type="hidden" id="currentPokemonId">
                     <div class="mb-3">
+                        <!--Se valida que el ID sea mayor a 0-->
                         <label class="form-label">ID</label>
-                        <input type="number" class="form-control" id="pokemonId" required>
+                        <input type="number" class="form-control" id="pokemonId" min="1" required>
                     </div>
                     <div class="mb-3">
                         <label class="form-label">Nombre</label>
                         <input type="text" class="form-control" id="pokemonName" required>
                     </div>
                     <div class="mb-3">
+                        <!--Se valida que la vida sea mayor a 0-->
                         <label class="form-label">Vida</label>
-                        <input type="number" class="form-control" id="pokemonHp" required>
+                        <input type="number" class="form-control" id="pokemonHp" min="1" required>
                     </div>
                     <div class="mb-3">
+                        <!--Se valida que el daño sea igual o mayor a 0-->
                         <label class="form-label">Daño</label>
-                        <input type="number" class="form-control" id="pokemonDamage" required>
+                        <input type="number" class="form-control" id="pokemonDamage" min="0" required>
                     </div>
                     <div class="mb-3">
+                        <!--Se valida que la defensa sea igual o mayor a 0-->
                         <label class="form-label">Defensa</label>
-                        <input type="number" class="form-control" id="pokemonDefense" required>
+                        <input type="number" class="form-control" id="pokemonDefense" min="0"required>
                     </div>
                     <button type="submit" class="btn btn-success" id="submitButton">Añadir Pokémon</button>
                     <button type="button" class="btn btn-secondary ms-2" onclick="cancelEdit()" id="cancelButton" style="display: none;">Cancelar</button>
@@ -74,8 +78,8 @@
 
     <!-- JavaScript para interactuar con la API -->
     <script>
-        //const API_URL = "http://localhost:8000/pokemons";
-        const API_URL = "https://pokeapi-uv.onrender.com/pokemons"
+        const API_URL = "http://localhost:8000/pokemons";
+        //const API_URL = "https://pokeapi-uv.onrender.com/pokemons"
         // Cargar Pokémones al iniciar
         document.addEventListener('DOMContentLoaded', fetchPokemons);
 
@@ -114,9 +118,10 @@
                 } else {
                     Swal.fire({
                         title: 'Error',
-                        text: data.error || 'Ese Pokémon ya existe en nuestra Pokédex.',
+                        text: data.error || 'No puedes cambiar la ID de un Pokémon',
                         icon: 'error'
                     });
+                    document.getElementById('pokemonId').value = pokemonId;
                 }
             } catch (error) {
                 if (error.status === 409) {
@@ -209,7 +214,7 @@
                 document.getElementById('editMode').value = 'true';
                 document.getElementById('currentPokemonId').value = id;
                 document.getElementById('pokemonId').value = pokemon.id;
-                document.getElementById('pokemonId').readOnly = true;
+                //document.getElementById('pokemonId').readOnly = true;
                 document.getElementById('pokemonName').value = pokemon.nombre;
                 document.getElementById('pokemonHp').value = pokemon.vida;
                 document.getElementById('pokemonDamage').value = pokemon.daño;
