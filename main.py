@@ -3,7 +3,7 @@ from typing import Union
 from fastapi import FastAPI
 from pydantic import BaseModel
 # Se añaden para funcionar con el front
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -20,8 +20,8 @@ origins = [
 ]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Permite todos los orígenes (en desarrollo) para probar en local
-    #allow_origins=origins, # Permite todos los orígenes (en desarrollo) para la web
+    #allow_origins=["*"],  # Permite todos los orígenes (en desarrollo) para probar en local
+    allow_origins=origins, # Permite todos los orígenes (en desarrollo) para la web
     allow_credentials=True,
     allow_methods=["*"],  # Permite todos los métodos (GET, POST, etc.)
     allow_headers=["*"],  # Permite todos los headers
@@ -32,6 +32,23 @@ class Pokemon(BaseModel):
     vida: int
     daño: int
     defensa: int
+
+class ConnectionManager:
+    def __init__(self):
+        self.active_connections = []
+
+    async def connect(self, websocket: WebSocket):
+        await websocket.accept()
+        self.active_connections.append(websocket)
+
+    def disconnect(self, websocket: WebSocket):
+        self.active_connections.remove(websocket)
+
+    async def broadcast(self, message: str):
+        for connection in self.active_connections:
+            await connection.send_text(message)
+
+manager = ConnectionManager()
 
 # POKEMONES PRINCIPALES
 bulbasaur = {
@@ -56,6 +73,16 @@ squirtle = {
     "defensa": 65
 }
 pokemones = [bulbasaur, charmander, squirtle]
+
+# Websockets para la actualizacion a tiempo real
+@app.websocket("/ws")
+async def websocket_endpoint(websocket: WebSocket):
+    await manager.connect(websocket)
+    try:
+        while True:
+            await websocket.receive_text()
+    except WebSocketDisconnect:
+        manager.disconnect(websocket)
 
 # Nueva ruta para servir el HTML
 @app.get("/", response_class=HTMLResponse)
@@ -89,7 +116,7 @@ def read_pokemon(pokemon_id: int):
 #Vamos a tener en cuenta que no se pueden crear pokemones con ID negativas o menores a 0
 #Tampoco se permite vida menor a 1, ni daño y defensa menores a 0
 @app.post("/pokemons/")
-def create_pokemon(pokemon: Pokemon):
+async def create_pokemon(pokemon: Pokemon):
     if pokemon.id <= 0:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -118,6 +145,7 @@ def create_pokemon(pokemon: Pokemon):
             detail=f"Ya existe un Pokémon con ID {pokemon['id']}"
         )
     pokemones.append(pokemon_dict)
+    await manager.broadcast("update_pokemons")
     return {"Pokemon añadido": {"Pokemon": pokemon_dict}}
     
 

@@ -78,8 +78,16 @@
 
     <!-- JavaScript para interactuar con la API -->
     <script>
-        const API_URL = "http://localhost:8000/pokemons";
-        //const API_URL = "https://pokeapi-uv.onrender.com/pokemons"
+        // Conexión WebSocket
+        const socket = new WebSocket(`wss://${window.location.host}/ws`);
+
+        socket.onmessage = (event) => {
+            if (event.data === "update_pokemons") {
+                fetchPokemons();  // ¡Actualiza la lista!
+            }
+        };
+        //const API_URL = "http://localhost:8000/pokemons";
+        const API_URL = "https://pokeapi-uv.onrender.com/pokemons"
         // Cargar Pokémones al iniciar
         document.addEventListener('DOMContentLoaded', fetchPokemons);
 
