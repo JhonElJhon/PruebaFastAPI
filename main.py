@@ -12,9 +12,14 @@ from fastapi import FastAPI, HTTPException, status
 
 app = FastAPI()
 templates = Jinja2Templates(directory="templates")
+
+origins = [
+    "https://https://pokeapi-uv.onrender.com/",
+    "http://localhost:8000",  # Para desarrollo local
+]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Permite todos los orígenes (en desarrollo)
+    allow_origins=origins,  # Permite todos los orígenes (en desarrollo)
     allow_credentials=True,
     allow_methods=["*"],  # Permite todos los métodos (GET, POST, etc.)
     allow_headers=["*"],  # Permite todos los headers
